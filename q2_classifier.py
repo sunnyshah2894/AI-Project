@@ -45,11 +45,9 @@ def test(test_file):
     test_data = open(test_file, "r")
     spam_probability = float(count_spam) /float(count_ham + count_spam)
     ham_probability = float(count_ham) / float(count_ham + count_spam)
-    delta = 1
+    delta = 0.1
     spam_vocab = len(spam_words)
     ham_vocab=len(spam_words)
-    predicted_spam_count = 0
-    predicted_ham_count = 0
     predictions = []
 
     for row in test_data.readlines():
@@ -62,28 +60,26 @@ def test(test_file):
         for i in range(2, len(row), 2):
             word = row[i]
             count = row[i+1]
-            numerator = float(np.log10( spam_words[word] + delta ))
+            numerator = float( spam_words[word] + delta )
             denominator = float( count_spam_words + ( spam_vocab*delta ))
-            probability_of_being_spam += (numerator/denominator) * float(count)
+            probability_of_being_spam += np.log10(numerator/denominator) * float(count)
 
-        probability_of_being_ham=np.log10(ham_probability)
+        probability_of_being_ham = np.log10(ham_probability)
 
         # Now add conditional probability
         for i in range(2, len(row), 2):
             word = row[i]
             count = row[i+1]
-            numerator = np.log10( ham_words[word] + delta )
+            numerator = float( ham_words[word] + delta )
             denominator = float( count_ham_words + ( ham_vocab*delta ))
-            probability_of_being_ham += (numerator/denominator) * float(count)
+            probability_of_being_ham += np.log10(numerator/denominator) * float(count)
 
         predicted_label = "spam"
-        predicted_spam_count += 1
         if( probability_of_being_ham > probability_of_being_spam ):
             predicted_label = "ham"
-            predicted_spam_count-=1
-            predicted_ham_count+=1
 
         predictions.append((row[0], predicted_label,actual_label))
+
 
     return predictions
 
@@ -105,6 +101,8 @@ def evaluate(predictions, output_file):
     total_test_instances=len(predictions)
     true_ham_count=0
     true_spam_count=0
+    predicted_spam_count=0
+    predicted_ham_count=0
 
     output=output_file + ".csv"
 
@@ -126,15 +124,25 @@ def evaluate(predictions, output_file):
             else:
                 true_ham_count+=1
 
-            writer.write(email_id+","+predicted_result)
+            if predicted_result.lower() == "spam":
+                predicted_spam_count+=1
+            else:
+                predicted_ham_count+=1
+
+            writer.write(email_id+","+predicted_result+"\n")
 
     true_positive = number_of_correct_spam_predictions
-    # false_positive =
-    # Print the accuracy, f1 and recall
-    print "Accuracy: ", float(number_of_correct_ham_predictions + number_of_correct_spam_predictions) / (total_test_instances) * 100, "%"
-    # print "Precision: ", float(number_of_correct_spam_predictions) / total_pred_spam_count * 100, "%"
-    # print "Recall: ", float(correct_pred_spam_count) / actual_spam_count * 100, "%"
+    false_positive = predicted_spam_count - number_of_correct_spam_predictions
+    false_negative = predicted_ham_count - number_of_correct_ham_predictions
 
+    precision = float(float(true_positive) / float(true_positive+false_positive)) * 100
+    recall = float(float(true_positive) / float(true_positive + false_negative)) * 100
+    F1Score = 2.0*(precision*recall) / (precision + recall)
+
+    print "Accuracy: ", float(number_of_correct_ham_predictions + number_of_correct_spam_predictions) / (total_test_instances) * 100, "%"
+    print "Precision: ", precision, "%"
+    print "Recall: ", recall, "%"
+    print "F1-Score: ", F1Score,"%"
 
 if __name__ == "__main__":
 
