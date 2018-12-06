@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-import sys
-import csv
+
 from collections import Counter
 
 
@@ -54,9 +52,9 @@ def test(test_file):
 
         row = row.split(' ')
         actual_label = row[1]
-        # Due to probabilities in logarithms, prob. of spam or ham is also taken in logarithms form
+
         probability_of_being_spam = float(np.log10(spam_probability))
-        # now add conditional probability
+
         for i in range(2, len(row), 2):
             word = row[i]
             count = row[i+1]
