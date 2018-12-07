@@ -37,14 +37,26 @@ def count_of_value_in_a_column( df, column_name, value ):
     """
     return len(df[df[column_name] == value])
 
+def filter_dataframe_rowandcolumnwise( df, column_name, value ):
+    """
+        Function to filter the dataframe along the column "column_name" with value of "value"
+    """
+    df_copy = df.filter([column_name, 'target'], axis=1)
+    return df_copy[df_copy[column_name] == value]
+
 def filter_dataframe_rowwise( df, column_name, value ):
     """
         Function to filter the dataframe along the column "column_name" with value of "value"
     """
     return df[df[column_name] == value]
 
-def generate_decision_tree(examples, attributes, p_value):
+max_height = 0
 
+def generate_decision_tree(examples, attributes, p_value, curr_height = 0):
+
+    global max_height
+    curr_height += 1
+    max_height = max(max_height, curr_height)
     """
         What if there are no examples left, we create a terminal node and return
     """
@@ -67,7 +79,6 @@ def generate_decision_tree(examples, attributes, p_value):
     current_count_of_positives = count_of_value_in_a_column( examples,'target',1 )
     current_count_of_negatives = count_of_value_in_a_column( examples,'target',0 )
 
-
     """
         If no attributes left to break down further, create a terminal node with plurarity value of the either positive
         or negative depending on the count of positive and negatives remaining in the dataset.
@@ -83,6 +94,7 @@ def generate_decision_tree(examples, attributes, p_value):
     """
     best_attribute_till_now = find_best_attribute_to_split_on(examples, attributes)
 
+    print "Best-attribute selected = ",str(best_attribute_till_now)
     """
         Check if we should stop splitting, based on the chisqare statistics
     """
@@ -117,7 +129,7 @@ def generate_decision_tree(examples, attributes, p_value):
         for value in range(0,5):
             new_examples = filter_dataframe_rowwise( examples,best_attribute_till_now,value+1 )
             new_examples = new_examples.drop([best_attribute_till_now], axis=1)
-            next_node.nodes[value] = generate_decision_tree(new_examples, new_attributes, p_value)
+            next_node.nodes[value] = generate_decision_tree(new_examples, new_attributes, p_value,curr_height+1)
 
         return next_node
 
@@ -149,13 +161,13 @@ def find_best_attribute_to_split_on(examples, attr):
         current_entropy = 0.0
         for value in examples[attribute].unique():
 
-            filtered_data = filter_dataframe_rowwise(examples,attribute,value)
+            filtered_data = filter_dataframe_rowandcolumnwise(examples,attribute,value)
 
             p_k = count_of_value_in_a_column( filtered_data,'target',1 )
             n_k = count_of_value_in_a_column( filtered_data,'target',0 )
 
             # Sum of entropy of each element of attribute
-            current_entropy += (float(p_k+n_k)/float(p_plus_n))*calculate_entropy(p_k/(p_k+n_k))
+            current_entropy += (float(p_k+n_k)/float(p_plus_n))*calculate_entropy(float(p_k)/float(p_k+n_k))
 
         entropies_for_each_attribute[attribute] = current_entropy
 
@@ -188,10 +200,10 @@ def check_chi_square_stopping_condition(examples, best_attr, p_value):
 
     """
         We create 2 lists:
-        observed_positives_and_negatives -> stores the p_i and n_i for each T_i
+        actual_positives_and_negatives -> stores the p_i and n_i for each T_i
         expected_positives_and_negatives -> stores the p_i_prime and n_i_prime for each T_i
     """
-    observed_positives_and_negatives = []
+    actual_positives_and_negatives = []
     expected_positives_and_negatives = []
 
     for elem in list_of_feature_values:
@@ -211,13 +223,13 @@ def check_chi_square_stopping_condition(examples, best_attr, p_value):
 
         if p_i_prime != 0:
             expected_positives_and_negatives.append(p_i_prime)
-            observed_positives_and_negatives.append(p_i)
+            actual_positives_and_negatives.append(p_i)
         if n_i_prime != 0:
             expected_positives_and_negatives.append(n_i_prime)
-            observed_positives_and_negatives.append(n_i)
+            actual_positives_and_negatives.append(n_i)
 
     # Calculate the chisquare using the scipy.stats.chisquare library function call
-    _, p = chisquare(observed_positives_and_negatives, expected_positives_and_negatives)
+    _, p = chisquare(actual_positives_and_negatives, expected_positives_and_negatives)
 
     # If the Threshold is reached, then stop splitting further, else return false
     if p > p_value:
@@ -304,9 +316,10 @@ attributes = [i for i in range(Xtrain_df.shape[1])]
 # Add the labels as a target column in our dataframe
 Xtrain_df['target'] = Ytrain_df[0]
 
+print("Generating the Tree now")
 # Call ID3 algorithm to create the decision tree
 model = generate_decision_tree(Xtrain_df, attributes, p_value)
-
+print "Maximum height of the tree created = ", str(max_height)
 model.save_tree(tree_name)
 
 print("Testing...")
